@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Halloween Movie Title Generator</title>
+  <title>Halloween × Programmatic Title Generator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root { --bg:#0b0b0c; --card:#121214; --ink:#f5f5f7; --muted:#c9c9d1; --line:#27272a; --accent:#ff7a18; }
+    :root { --bg:#0b0b0c; --card:#121214; --ink:#f5f5f7; --muted:#c9c9d1; --line:#27272a; --accent:#8b5cf6; }
     *{box-sizing:border-box} body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#1a1a1d 0%, #000 70%) fixed, var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
     .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{width:100%;max-width:720px;background:color-mix(in srgb,var(--card),transparent 10%);backdrop-filter: blur(6px);border:1px solid var(--line);border-radius:20px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+    .card{width:100%;max-width:760px;background:color-mix(in srgb,var(--card),transparent 10%);backdrop-filter: blur(6px);border:1px solid var(--line);border-radius:20px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
     .body{padding:28px}
     h1{margin:0 0 10px;font-weight:800;font-size:26px}
     p{margin:0 0 18px;color:var(--muted)}
@@ -17,20 +17,19 @@
     .label{display:block;color:#9aa0a6;font-size:12px;margin:0 0 6px}
     input[type="date"]{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0c0c0f;color:#fff;outline:none}
     button{padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0c0c0f;color:#fff;cursor:pointer}
-    .primary{border-color:color-mix(in srgb,var(--accent),#fff 70%); background: color-mix(in srgb,var(--accent), transparent 85%); color:#ffd8bb}
+    .primary{border-color:color-mix(in srgb,var(--accent),#fff 70%); background: color-mix(in srgb,var(--accent), transparent 85%); color:#e9ddff}
     .primary[disabled]{opacity:.5;cursor:not-allowed}
     .panel{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:#0c0c0f;padding:16px}
-    .hint{display:grid;gap:8px;margin-top:16px}
     .footer{font-size:12px;color:#9aa0a6;margin-top:14px}
-    @media(max-width:720px){ .row{grid-template-columns:1fr; } }
+    @media(max-width:760px){ .row{grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <div class="body">
-        <h1>Halloween Movie Title Generator 🎃</h1>
-        <p>Enter your <b>date of birth</b>. We’ll use your <i>day</i>, <i>month</i>, and the <i>last digit of your year</i> to conjure a spooky title.</p>
+        <h1>🎃 Halloween × Programmatic Title Generator</h1>
+        <p>Enter your <b>date of birth</b>. We’ll use your <i>day</i>, <i>month</i>, and the <i>last digit of your year</i> to conjure a spooky dev-flavored title.</p>
 
         <div class="row">
           <label>
@@ -42,62 +41,5 @@
         </div>
 
         <div class="panel">
-          <div style="color:#ffb469;font-size:12px;font-weight:700;margin-bottom:6px">Your Movie Title</div>
-          <h2 id="title" style="margin:0;font-size:28px;font-weight:900;min-height:36px">Pick a date to summon your title…</h2>
-        </div>
-
-        <div class="hint footer">
-          Tip: Copy your title and paste it as a reply in the Slack thread!
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Dictionaries
-    const dayWords = {1:"Curse",2:"Blood",3:"Night",4:"Ghost",5:"Witch",6:"Children",7:"House",8:"Legend",9:"Haunting",10:"Return",11:"Tomb",12:"Killer",13:"Nightmare",14:"Terror",15:"Invasion",16:"Evil",17:"Revenge",18:"Shadows",19:"Demon",20:"Secret",21:"Bride",22:"Dawn",23:"Dead",24:"Mask",25:"Creeps",26:"Midnight",27:"Corpse",28:"Grave",29:"Phantom",30:"Zombie",31:"Cannibal"};
-    const monthTwist = {1:"of the",2:"in the",3:"from the",4:"beneath the",5:"beyond the",6:"against the",7:"at the",8:"versus the",9:"within the",10:"above the",11:"haunted by the",12:"rise of the"};
-    const yearThing = {0:"Crypt",1:"Swamp",2:"Vampire",3:"Pumpkin Patch",4:"Morgue",5:"Demon",6:"Graveyard",7:"Werewolf",8:"Witch",9:"Zombie"};
-
-    const elDob = document.getElementById("dob");
-    const elTitle = document.getElementById("title");
-    const elCopy = document.getElementById("copy");
-    const elRandomize = document.getElementById("randomize");
-
-    function titleFromISO(iso){
-      if(!iso) return "";
-      const [y,m,d] = iso.split("-").map(Number);
-      if(!y||!m||!d) return "";
-      return `${dayWords[d]} ${monthTwist[m]} ${yearThing[y % 10]}`;
-    }
-
-    function update(){
-      const iso = elDob.value;
-      const t = titleFromISO(iso);
-      elTitle.textContent = t || "Pick a date to summon your title…";
-      elCopy.disabled = !t;
-    }
-
-    elDob.addEventListener("change", update);
-
-    elCopy.addEventListener("click", async () => {
-      const t = elTitle.textContent.trim();
-      if(!t || t === "Pick a date to summon your title…") return;
-      try {
-        await navigator.clipboard.writeText(`🎬 ${t}`);
-        const old = elCopy.textContent;
-        elCopy.textContent = "Copied!";
-        setTimeout(()=> (elCopy.textContent = old), 1200);
-      } catch(e) { alert("Copy failed. Please copy manually."); }
-    });
-
-    elRandomize.addEventListener("click", () => {
-      const day = Math.floor(Math.random()*31)+1;
-      const month = Math.floor(Math.random()*12)+1;
-      const year = 1970 + Math.floor(Math.random()*45); // 1970–2014
-      elDob.value = `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-      update();
-    });
-  </script>
-</body>
-</html>
+          <div style="color:#c4b5fd;font-size:12px;font-weight:700;margin-bottom:6px">Your Movie Title</div>
+          <h2 id="title" style="margin:0;font
