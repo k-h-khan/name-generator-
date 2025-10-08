@@ -13,13 +13,14 @@
     .body{padding:28px}
     h1{margin:0 0 10px;font-weight:800;font-size:26px}
     p{margin:0 0 18px;color:var(--muted)}
-    .row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:end}
+    .row{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:end}
     label{display:block}
     .label{display:block;color:#9aa0a6;font-size:12px;margin:0 0 6px}
     .dob-fields{display:flex; gap:8px;}
     .dob-input{width:110px; padding:12px 14px; border-radius:12px; border:1px solid var(--line); background:#0c0c0f; color:#fff; outline:none}
     .dob-input.mm,.dob-input.dd{width:80px}
-    button{padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0c0c0f;color:#fff;cursor:pointer}
+    button{padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0c0c0f;color:#fff;cursor:pointer;transition:0.2s}
+    button:hover{background:#1a1a1d}
     .primary{border-color:color-mix(in srgb,var(--accent),#fff 70%); background: color-mix(in srgb,var(--accent), transparent 85%); color:#e9ddff}
     .primary[disabled]{opacity:.5;cursor:not-allowed}
     .panel{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:#0c0c0f;padding:16px}
@@ -44,6 +45,7 @@
             </div>
           </label>
           <button id="generate" class="primary">Generate</button>
+          <button id="randomize">Randomize</button>
           <button id="copy" class="primary" disabled>Copy Title</button>
         </div>
 
@@ -61,12 +63,12 @@
     const dayWords = {
       1:"Curse",2:"Blood",3:"Night",4:"Ghost",5:"Witch",6:"Vampire",7:"House",8:"Legend",
       9:"Haunting",10:"Return",11:"Tomb",12:"Killer",13:"Nightmare",14:"Terror",15:"Invasion",
-      16:"Evil",17:"Revenge",18:"Shadows",19:"Demon",20:"Secret",21:"Bride",22:"Dawn",23:"Dead",
+      16:"Evil",17:"Revenge",18:"Shadows",19:"Demon",20:"Secret",21:"Distraction",22:"Dawn",23:"Dead",
       24:"Mask",25:"Creeps",26:"Midnight",27:"Corpse",28:"Grave",29:"Phantom",30:"Zombie",31:"Cannibal"
     };
     const monthTwist = {
       1:"of the",2:"in the",3:"from the",4:"beneath the",5:"beyond the",6:"against the",
-      7:"at the",8:"versus the",9:"within the",10:"above the",11:"haunted by the",12:"rise of the"
+      7:"at the",8:"versus the",9:"within the",10:"above the",11:"haunted by the",12:"- rise of the"
     };
     const yearThing = {
       0:"Click Tracker",1:"Discrepancy",2:"Bot Traffic",3:"Cookies",4:"Optimizer",
@@ -79,6 +81,7 @@
     const elTitle = document.getElementById("title");
     const elCopy = document.getElementById("copy");
     const elGenerate = document.getElementById("generate");
+    const elRandomize = document.getElementById("randomize");
 
     const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
     const daysInMonth = (y, m) => new Date(y, m, 0).getDate();
@@ -107,6 +110,16 @@
       elCopy.disabled = !t;
     }
 
+    function randomizeDate(){
+      const day = Math.floor(Math.random()*31)+1;
+      const month = Math.floor(Math.random()*12)+1;
+      const year = 1970 + Math.floor(Math.random()*45);
+      elY.value = String(year);
+      elM.value = String(month).padStart(2,"0");
+      elD.value = String(day).padStart(2,"0");
+      generateTitle();
+    }
+
     // Auto cursor move
     function autoAdvance(e){
       const t = e.target;
@@ -126,6 +139,7 @@
     });
 
     elGenerate.addEventListener("click", generateTitle);
+    elRandomize.addEventListener("click", randomizeDate);
 
     elCopy.addEventListener("click", async () => {
       const t = elTitle.textContent.trim();
