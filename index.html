@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>🎃 Bid or Treat 💻🍬 — Movie Title Generator</title>
+  <title>🎃 Bid 💻 or Treat 🍬</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{
@@ -75,12 +75,13 @@
     .btn[disabled]{opacity:.5;cursor:not-allowed}
 
     .panel{margin-top:18px;border:1px solid var(--line);border-radius:14px;background:#0c0c0f;padding:18px}
-    .panel-header{
-      display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;
-    }
-    .panel-header .kicker{
-      color:#c4b5fd;font-size:12px;font-weight:700;letter-spacing:.4px;
-    }
+    .panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+    .panel-header .kicker{color:#c4b5fd;font-size:12px;font-weight:700;letter-spacing:.4px}
+
+    /* Copy button reveal */
+    .copy-btn{opacity:0; pointer-events:none; transform:translateY(-4px); transition:opacity .25s ease, transform .25s ease;}
+    .copy-btn.show{opacity:1; pointer-events:auto; transform:translateY(0);}
+
     .title{
       margin:0;min-height:38px;font-size:30px;font-weight:900;line-height:1.2;
       background:linear-gradient(90deg, #e9ddff 0%, #ffd8bb 60%, #e9ddff 100%);
@@ -100,7 +101,7 @@
   <div class="wrap">
     <div class="card">
       <div class="body">
-        <h1>🎃 Bid or Treat 💻🍬 — Movie Title Generator</h1>
+        <h1>🎃 Bid 💻 or Treat 🍬</h1>
         <p>Enter your <b>date of birth</b>. We’ll use your <i>day</i>, <i>month</i>, and the <i>last digit of your year</i> to conjure a spooky, programmatic-themed title.</p>
 
         <div class="row">
@@ -128,7 +129,7 @@
         <div class="panel">
           <div class="panel-header">
             <div class="kicker">Your Movie Title</div>
-            <button id="copy" class="btn primary" disabled>Copy Title</button>
+            <button id="copy" class="btn primary copy-btn" disabled>Copy Title</button>
           </div>
           <h2 id="title" class="title">Pick a date to summon your title…</h2>
         </div>
@@ -139,44 +140,56 @@
   </div>
 
   <script>
-    const dayWords = {
-      1:"Curse",2:"Blood",3:"Night",4:"Ghost",5:"Witch",6:"Vampire",7:"House",8:"Legend",
-      9:"Haunting",10:"Return",11:"Tomb",12:"Killer",13:"Nightmare",14:"Terror",15:"Invasion",
-      16:"Evil",17:"Revenge",18:"Shadows",19:"Demon",20:"Secret",21:"Distraction",22:"Dawn",23:"Dead",
-      24:"Mask",25:"Spirits",26:"Midnight",27:"Corpse",28:"Grave",29:"Phantom",30:"Zombie",31:"Sinners"
-    };
-    const monthTwist = {
-      1:"of the",2:"in the",3:"from the",4:"beneath the",5:"beyond the",6:"against the",
-      7:"at the",8:"versus the",9:"within the",10:"above the",11:" - haunted by the",12:" - rise of the"
-    };
-    const yearThing = {
-      0:"Click Tracker",1:"Discrepancy",2:"Bot Traffic",3:"Cookies",4:"Optimizer",
-      5:"Bounce Rate",6:"Bid Multiplier",7:"Deal Troubleshooter",8:"Audience Insight",9:"Report Builder"
-    };
+    // Dictionaries
+    const dayWords={1:"Curse",2:"Blood",3:"Night",4:"Ghost",5:"Witch",6:"Vampire",7:"House",8:"Legend",9:"Haunting",10:"Return",11:"Tomb",12:"Killer",13:"Nightmare",14:"Terror",15:"Invasion",16:"Evil",17:"Revenge",18:"Shadows",19:"Demon",20:"Secret",21:"Distraction",22:"Dawn",23:"Dead",24:"Mask",25:"Spirits",26:"Midnight",27:"Corpse",28:"Grave",29:"Phantom",30:"Zombie",31:"Sinners"};
+    const monthTwist={1:"of the",2:"in the",3:"from the",4:"beneath the",5:"beyond the",6:"against the",7:"at the",8:"versus the",9:"within the",10:"above the",11:"haunted by the",12:"rise of the"};
+    const yearThing={0:"Click Tracker",1:"Discrepancy",2:"Bot Traffic",3:"Cookies",4:"Optimizer",5:"Bounce Rate",6:"Bid Multiplier",7:"Deal Troubleshooter",8:"Audience Insight",9:"Report Builder"};
 
-    const elY=document.getElementById("dobY"),elM=document.getElementById("dobM"),elD=document.getElementById("dobD");
-    const elTitle=document.getElementById("title"),elCopy=document.getElementById("copy");
-    const elGenerate=document.getElementById("generate"),elRandomize=document.getElementById("randomize");
+    // Elements
+    const elY=document.getElementById("dobY"), elM=document.getElementById("dobM"), elD=document.getElementById("dobD");
+    const elTitle=document.getElementById("title"), elCopy=document.getElementById("copy");
+    const elGenerate=document.getElementById("generate"), elRandomize=document.getElementById("randomize");
 
     const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
     const daysInMonth=(y,m)=>new Date(y,m,0).getDate();
 
     function buildISO(){
-      const y=parseInt(elY.value,10),m=parseInt(elM.value,10),d=parseInt(elD.value,10);
-      if(!y||!m||!d)return""; if(m<1||m>12)return"";
-      const dim=daysInMonth(y,m); if(d<1||d>dim)return"";
-      return`${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      const y=parseInt(elY.value,10), m=parseInt(elM.value,10), d=parseInt(elD.value,10);
+      if(!y||!m||!d) return "";
+      if(m<1||m>12) return "";
+      const dim=daysInMonth(y,m);
+      if(d<1||d>dim) return "";
+      return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
     }
 
     function titleFromISO(iso){
-      if(!iso)return""; const [y,m,d]=iso.split("-").map(Number);
-      return`${dayWords[d]} ${monthTwist[m]} ${yearThing[y%10]}`;
+      if(!iso) return "";
+      const [y,m,d]=iso.split("-").map(Number);
+      return `${dayWords[d]} ${monthTwist[m]} ${yearThing[y%10]}`;
+    }
+
+    function sanitize(){
+      elY.value=elY.value.replace(/\D+/g,"");
+      elM.value=elM.value.replace(/\D+/g,"");
+      elD.value=elD.value.replace(/\D+/g,"");
+      if(elM.value) elM.value=String(clamp(parseInt(elM.value,10)||0,1,12));
+      if(elD.value){
+        const y=parseInt(elY.value,10)||2000, m=parseInt(elM.value,10)||1;
+        elD.value=String(clamp(parseInt(elD.value,10)||0,1,daysInMonth(y,m)));
+      }
+    }
+
+    function revealCopy(show){
+      elCopy.classList.toggle("show", !!show);
+      elCopy.disabled = !show;
     }
 
     function generateTitle(){
       sanitize();
-      const iso=buildISO(); const t=titleFromISO(iso);
-      elTitle.textContent=t||"Pick a date to summon your title…"; elCopy.disabled=!t;
+      const iso=buildISO();
+      const t=titleFromISO(iso);
+      elTitle.textContent = t || "Pick a date to summon your title…";
+      revealCopy(!!t);
     }
 
     function randomizeDate(){
@@ -189,24 +202,14 @@
       generateTitle();
     }
 
-    function sanitize(){
-      elY.value=elY.value.replace(/\D+/g,"");
-      elM.value=elM.value.replace(/\D+/g,"");
-      elD.value=elD.value.replace(/\D+/g,"");
-      if(elM.value)elM.value=String(clamp(parseInt(elM.value,10)||0,1,12));
-      if(elD.value){
-        const y=parseInt(elY.value,10)||2000; const m=parseInt(elM.value,10)||1;
-        elD.value=String(clamp(parseInt(elD.value,10)||0,1,daysInMonth(y,m)));
-      }
-    }
     function autoAdvance(e){
       const t=e.target; sanitize();
-      if(t===elY&&t.value.length>=4)elM.focus();
-      if(t===elM&&t.value.length>=2)elD.focus();
+      if(t===elY&&t.value.length>=4) elM.focus();
+      if(t===elM&&t.value.length>=2) elD.focus();
     }
     function backspaceNav(e){
       if(e.key==="Backspace"&&e.target.value===""){
-        if(e.target===elD)elM.focus(); else if(e.target===elM)elY.focus();
+        if(e.target===elD) elM.focus(); else if(e.target===elM) elY.focus();
       }
     }
     [elY,elM,elD].forEach(el=>{
@@ -217,15 +220,18 @@
     elGenerate.addEventListener("click",generateTitle);
     elRandomize.addEventListener("click",randomizeDate);
 
-    elCopy.addEventListener("click",async()=>{
+    elCopy.addEventListener("click", async ()=>{
       const t=elTitle.textContent.trim();
-      if(!t||t==="Pick a date to summon your title…")return;
+      if(!t||t==="Pick a date to summon your title…") return;
       try{
         await navigator.clipboard.writeText(`🎬 ${t}`);
         const old=elCopy.textContent; elCopy.textContent="Copied!";
         setTimeout(()=>elCopy.textContent=old,1200);
-      }catch{alert("Copy failed. Please copy manually.");}
+      }catch{ alert("Copy failed. Please copy manually."); }
     });
+
+    // Start hidden
+    revealCopy(false);
   </script>
 </body>
 </html>
