@@ -95,6 +95,11 @@
     }
 
     .hint{font-size:12px;color:#9aa0a6;margin-top:14px}
+
+    /* Poster Prompt */
+    #posterPromptSection h2{font-size:18px;margin:0 0 8px}
+    #posterPrompt{width:100%;box-sizing:border-box;padding:.75rem;border-radius:12px;border:1px solid var(--line);background:#0c0c0f;color:#eee;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace}
+    .tiny{font-size:12px;color:#9aa0a6;margin-top:8px}
   </style>
 </head>
 <body>
@@ -134,6 +139,17 @@
           <h2 id="title" class="title">Pick a date to summon your title…</h2>
         </div>
 
+        <!-- Poster Prompt Panel -->
+        <div class="panel" id="posterPromptSection" aria-live="polite">
+          <div class="panel-header">
+            <div class="kicker">Poster Prompt</div>
+            <button id="copyPosterPromptBtn" class="btn primary copy-btn" disabled>Copy Prompt</button>
+          </div>
+          <h2 id="posterHeading" class="title" style="font-size:20px">Generate a title to unlock the poster prompt…</h2>
+          <textarea id="posterPrompt" readonly rows="8" placeholder="Your copy‑and‑paste chatbot prompt will appear here."></textarea>
+          <div class="tiny">Tip: Paste this into your favorite image chatbot to get a custom movie poster. Try 2:3 aspect ratio.</div>
+        </div>
+
         <div class="hint">Tip: Copy your title and paste it as a reply in the Slack thread!</div>
       </div>
     </div>
@@ -149,6 +165,12 @@
     const elY=document.getElementById("dobY"), elM=document.getElementById("dobM"), elD=document.getElementById("dobD");
     const elTitle=document.getElementById("title"), elCopy=document.getElementById("copy");
     const elGenerate=document.getElementById("generate"), elRandomize=document.getElementById("randomize");
+
+    // Poster prompt elements
+    const elPosterPanel=document.getElementById('posterPromptSection');
+    const elPosterTA=document.getElementById('posterPrompt');
+    const elPosterCopy=document.getElementById('copyPosterPromptBtn');
+    const elPosterHeading=document.getElementById('posterHeading');
 
     const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
     const daysInMonth=(y,m)=>new Date(y,m,0).getDate();
@@ -179,9 +201,35 @@
       }
     }
 
-    function revealCopy(show){
-      elCopy.classList.toggle("show", !!show);
-      elCopy.disabled = !show;
+    function revealCopy(btn, show){
+      btn.classList.toggle("show", !!show);
+      btn.disabled = !show;
+    }
+
+    function updatePosterPrompt(title){
+      if(!title){
+        elPosterHeading.textContent = 'Generate a title to unlock the poster prompt…';
+        elPosterTA.value = '';
+        revealCopy(elPosterCopy,false);
+        return;
+      }
+      // Compose the prompt
+      const prompt = [
+        `Create a dramatic Halloween movie poster titled "${title}".`,
+        "Mood: campy, spooky-fun, midnight-in-October.",
+        "Setting: moonlit cemetery with creeping fog and gnarled trees; a looming silhouette in the foreground.",
+        "Palette: deep blacks, foggy grays, pumpkin orange accents, eerie sickly greens.",
+        "Style: vintage 1970s grindhouse / hand-painted pulp illustration; film grain and light paper wear.",
+        "Typography: bold distressed horror lettering for the title; subtle tagline below if supported.",
+        "Layout: striking central figure; secondary elements balanced; strong contrast; vignetting at edges.",
+        "Framing: vertical 2:3 aspect ratio (portrait).",
+        `Text to include: large title only — \"${title}\" (optional small tagline). No other copy.`,
+        "Deliver a single finished poster composition."
+      ].join("\n");
+
+      elPosterTA.value = prompt;
+      elPosterHeading.textContent = 'Poster Prompt (copy to a chatbot)';
+      revealCopy(elPosterCopy,true);
     }
 
     function generateTitle(){
@@ -189,7 +237,8 @@
       const iso=buildISO();
       const t=titleFromISO(iso);
       elTitle.textContent = t || "Pick a date to summon your title…";
-      revealCopy(!!t);
+      revealCopy(elCopy, !!t);
+      updatePosterPrompt(t);
     }
 
     function randomizeDate(){
@@ -230,8 +279,26 @@
       }catch{ alert("Copy failed. Please copy manually."); }
     });
 
+    // Poster prompt copy button
+    elPosterCopy.addEventListener('click', async ()=>{
+      const v = elPosterTA.value.trim();
+      if(!v) return;
+      try{
+        await navigator.clipboard.writeText(v);
+        const old=elPosterCopy.textContent; elPosterCopy.textContent="Copied!";
+        setTimeout(()=>elPosterCopy.textContent=old,1200);
+      }catch{
+        // Fallback
+        elPosterTA.select();
+        document.execCommand('copy');
+        const old=elPosterCopy.textContent; elPosterCopy.textContent="Copied (fallback)!";
+        setTimeout(()=>elPosterCopy.textContent=old,1200);
+      }
+    });
+
     // Start hidden
-    revealCopy(false);
+    revealCopy(elCopy,false);
+    revealCopy(elPosterCopy,false);
   </script>
 </body>
 </html>
