@@ -83,7 +83,6 @@
   <script>
     // ===== Config =====
     const YEAR_MIN = 1900, YEAR_MAX = 2099; // tweak if needed
-    let hasSubmitted = false; // show errors only after first Generate
 
     // ===== Dictionaries =====
     const dayWords={1:"Curse",2:"Blood",3:"Night",4:"Ghost",5:"Witch",6:"Vampire",7:"House",8:"Legend",9:"Haunting",10:"Whispers",11:"Tomb",12:"Killer",13:"Nightmare",14:"Terror",15:"Invasion",16:"Evil",17:"Revenge",18:"Shadows",19:"Demon",20:"Secret",21:"Distraction",22:"Dawn",23:"Dead",24:"Mask",25:"Spirits",26:"Midnight",27:"Corpse",28:"Grave",29:"Phantom",30:"Zombie",31:"Sinners"};
@@ -128,11 +127,11 @@
       elD.value = elD.value.replace(/[^0-9]+/g, '').slice(0,2);
     }
 
-    // Pad on blur to two digits
-    function padOnBlurMonth(){ if (elM.value.length === 1) elM.value = '0' + elM.value; if (hasSubmitted) updateErrorUI(); }
-    function padOnBlurDay(){ if (elD.value.length === 1) elD.value = '0' + elD.value; if (hasSubmitted) updateErrorUI(); }
+    // Pad on blur to two digits (does not trigger errors)
+    function padOnBlurMonth(){ if (elM.value.length === 1) elM.value = '0' + elM.value; }
+    function padOnBlurDay(){ if (elD.value.length === 1) elD.value = '0' + elD.value; }
 
-    // Validation + error UI (simplified messages)
+    // Validation (simplified messages)
     function validateFields(){
       const errs = {};
       const yStr = elY.value, mStr = elM.value, dStr = elD.value;
@@ -153,17 +152,20 @@
       return { ok: Object.keys(errs).length === 0, errs };
     }
 
-    function updateErrorUI(){
-      if (!hasSubmitted) { elErr.textContent = ''; elY.classList.remove('invalid'); elM.classList.remove('invalid'); elD.classList.remove('invalid'); return; }
-      const {errs} = validateFields();
+    function showErrors(errs){
       elY.classList.toggle('invalid', !!errs.year);
       elM.classList.toggle('invalid', !!errs.month);
       elD.classList.toggle('invalid', !!errs.day);
-      const msg = [errs.year, errs.month, errs.day].filter(Boolean).join(' • ');
-      elErr.textContent = msg;
+      elErr.textContent = [errs.year, errs.month, errs.day].filter(Boolean).join(' • ');
     }
 
-    function clearErrors(){ elY.classList.remove('invalid'); elM.classList.remove('invalid'); elD.classList.remove('invalid'); elErr.textContent = ''; }
+    function clearErrors(){
+      elY.classList.remove('invalid');
+      elM.classList.remove('invalid');
+      elD.classList.remove('invalid');
+      elErr.textContent = '';
+    }
+
     function revealCopy(btn, show){ btn.classList.toggle('show', !!show); btn.disabled=!show; }
 
     // ===== Poster prompt =====
@@ -180,15 +182,15 @@
 
     // ===== UI wiring =====
     function generateTitle(){
-      hasSubmitted = true;
       sanitize();
       const {ok, errs} = validateFields();
-      updateErrorUI();
       if (!ok) {
+        showErrors(errs);
         if (errs.year) elY.focus(); else if (errs.month) elM.focus(); else if (errs.day) elD.focus();
         return;
       }
 
+      clearErrors();
       const iso=buildISO();
       const t=titleFromISO(iso);
       elTitle.textContent=t||"Pick a date to summon your title…";
@@ -197,7 +199,6 @@
     }
 
     function randomizeDate(){
-      hasSubmitted = false;
       const day=Math.floor(Math.random()*31)+1;
       const month=Math.floor(Math.random()*12)+1;
       const year=1970+Math.floor(Math.random()*45);
@@ -207,19 +208,19 @@
       clearErrors();
     }
 
-    function autoAdvance(e){
+    function handleInput(e){
       sanitize();
+      clearErrors();
       const t=e.target;
       if(t===elY&&t.value.length>=4) elM.focus();
       if(t===elM&&t.value.length>=2) elD.focus();
-      if (hasSubmitted) updateErrorUI();
     }
+
     function backspaceNav(e){ if(e.key==="Backspace"&&e.target.value===""){ if(e.target===elD) elM.focus(); else if(e.target===elM) elY.focus(); } }
 
-    [elY,elM,elD].forEach(el=>{ el.addEventListener("input",autoAdvance); el.addEventListener("keydown",backspaceNav); });
+    [elY,elM,elD].forEach(el=>{ el.addEventListener("input",handleInput); el.addEventListener("keydown",backspaceNav); });
     elM.addEventListener('blur', padOnBlurMonth);
     elD.addEventListener('blur', padOnBlurDay);
-    elY.addEventListener('blur', ()=>{ if (hasSubmitted) updateErrorUI(); });
 
     elGenerate.addEventListener("click",generateTitle);
     elRandomize.addEventListener("click",randomizeDate);
@@ -237,37 +238,33 @@
     });
 
     // Start hidden and clean state
-    (function init(){
-      hasSubmitted = false;
-      clearErrors();
-      revealCopy(elCopy,false);
-      revealCopy(elPosterCopy,false);
-    })();
+    (function init(){ clearErrors(); revealCopy(elCopy,false); revealCopy(elPosterCopy,false); })();
 
     // ===== Inline tests (open console) =====
     (function runTests(){
       const results=[]; const assert=(name,cond)=>results.push({name, pass:!!cond});
-      const save={y:elY.value,m:elM.value,d:elD.value, msg:elErr.textContent, submit:hasSubmitted};
+      const save={y:elY.value,m:elM.value,d:elD.value, msg:elErr.textContent};
 
-      // Test 1: Simplified messages
-      hasSubmitted=true; elY.value='1999'; elM.value='02'; elD.value='31'; updateErrorUI();
-      assert('Invalid date message', elErr.textContent.includes('Invalid date'));
-
-      // Test 2: Invalid month
-      elY.value='2005'; elM.value='13'; elD.value='01'; updateErrorUI();
-      assert('Invalid month message', elErr.textContent.includes('Invalid month'));
-
-      // Test 3: Invalid year
-      elY.value='1789'; elM.value='07'; elD.value='14'; updateErrorUI();
-      assert('Invalid year message', elErr.textContent.includes('Invalid year'));
-
-      // Test 4: Valid leap day passes
-      elY.value='2000'; elM.value='02'; elD.value='29'; const {ok}=validateFields();
-      assert('Leap year valid', ok);
-
-      // Restore & cleanup so UI looks fresh
-      elY.value=save.y; elM.value=save.m; elD.value=save.d; hasSubmitted=save.submit; elErr.textContent = save.msg;
+      // Test 1: Errors only on Generate
+      elY.value='1999'; elM.value='02'; elD.value='31';
       clearErrors();
+      assert('No errors before Generate', elErr.textContent==='');
+      generateTitle(); // invalid
+      assert('Errors appear on Generate', elErr.textContent.includes('Invalid date'));
+      // Edit clears errors while typing
+      elD.value='2'; handleInput({target:elD});
+      assert('Errors cleared while editing', elErr.textContent==='');
+      // Generate again to validate new value (still invalid until padded)
+      generateTitle();
+      assert('Errors appear again on next Generate if still invalid', elErr.textContent.includes('Invalid date'));
+
+      // Test 2: Valid date passes and shows no errors
+      elY.value='2000'; elM.value='02'; elD.value='29'; clearErrors();
+      generateTitle();
+      assert('Valid generates without errors', elErr.textContent==='');
+
+      // Restore
+      elY.value=save.y; elM.value=save.m; elD.value=save.d; elErr.textContent = save.msg; clearErrors();
 
       const passed=results.filter(r=>r.pass).length; console.log(`Bid or Treat tests: ${passed}/${results.length} passed`, results);
     })();
