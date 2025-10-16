@@ -5,9 +5,7 @@
   <title>🎃 Bid 💻 or Treat 🍬</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{
-      --bg:#0b0b0c; --card:#121214; --ink:#f5f5f7; --muted:#c9c9d1; --line:#27272a; --accent:#8b5cf6; --accent2:#ff7a18;
-    }
+    :root{ --bg:#0b0b0c; --card:#121214; --ink:#f5f5f7; --muted:#c9c9d1; --line:#27272a; --accent:#8b5cf6; --accent2:#ff7a18; }
     *{box-sizing:border-box}
     body{margin:0;background:radial-gradient(circle at 50% 20%, rgba(255,122,24,0.35) 0%, rgba(255,122,24,0.05) 60%, transparent 100%),linear-gradient(180deg, #8b5cf6 0%, #ff7a18 40%, #0b0b0c 95%);background-attachment:fixed;color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;position:relative;}
     body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.65) 100%),repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 2px, transparent 3px);mix-blend-mode:overlay;}
@@ -41,6 +39,9 @@
     #posterPromptSection h2{display:none}
     #posterPrompt{width:100%;box-sizing:border-box;padding:.75rem;border-radius:12px;border:1px solid var(--line);background:#0c0c0f;color:#eee;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace}
     .tiny{font-size:12px;color:#9aa0a6;margin-top:8px}
+    /* Error styles */
+    .error{margin-top:6px;color:#fca5a5;font-size:12px}
+    .dob-input.invalid{border-color:#ef4444; box-shadow:0 0 0 4px rgba(239,68,68,.18)}
   </style>
 </head>
 <body>
@@ -58,6 +59,7 @@
               <div class="dob-col"><span class="mini-label">Month</span><input id="dobM" class="dob-input mm" inputmode="numeric" placeholder="MM" maxlength="2" /></div>
               <div class="dob-col"><span class="mini-label">Day</span><input id="dobD" class="dob-input dd" inputmode="numeric" placeholder="DD" maxlength="2" /></div>
             </div>
+            <div id="dobError" class="error" role="alert" aria-live="polite"></div>
           </label>
           <button id="generate" class="btn primary">Generate</button>
           <button id="randomize" class="btn secondary">Randomize</button>
@@ -72,48 +74,203 @@
         <div class="panel" id="posterPromptSection" aria-live="polite">
           <div class="panel-header"><div class="kicker">Poster Prompt</div><button id="copyPosterPromptBtn" class="btn primary copy-btn" disabled>Copy Prompt</button></div>
           <textarea id="posterPrompt" readonly rows="8" placeholder="Your copy-and-paste chatbot prompt will appear here."></textarea>
-          <div class="tiny">Tip: Paste this into your favorite image chatbot to get a custom movie poster.</div>
+          <div class="tiny">Tip: Paste this into your favorite image chatbot to get a custom movie poster. Try 2:3 aspect ratio.</div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
+    // ===== Config =====
+    const YEAR_MIN = 1900, YEAR_MAX = 2099; // tweak if needed
+    let hasSubmitted = false; // show errors only after first Generate
+
+    // ===== Dictionaries =====
     const dayWords={1:"Curse",2:"Blood",3:"Night",4:"Ghost",5:"Witch",6:"Vampire",7:"House",8:"Legend",9:"Haunting",10:"Whispers",11:"Tomb",12:"Killer",13:"Nightmare",14:"Terror",15:"Invasion",16:"Evil",17:"Revenge",18:"Shadows",19:"Demon",20:"Secret",21:"Distraction",22:"Dawn",23:"Dead",24:"Mask",25:"Spirits",26:"Midnight",27:"Corpse",28:"Grave",29:"Phantom",30:"Zombie",31:"Sinners"};
     const monthTwist={1:"of the",2:"in the",3:"from the",4:"beneath the",5:"beyond the",6:"against the",7:"at the",8:"versus the",9:"within the",10:"above the",11:"- haunted by the",12:"- rise of the"};
     const yearThing={0:"Click Tracker",1:"Discrepancy",2:"Bot Traffic",3:"Cookies",4:"Optimizer",5:"Bounce Rate",6:"Bid Multiplier",7:"Deal Troubleshooter",8:"Audience Insight",9:"Report Builder"};
 
-    const elY=document.getElementById("dobY"), elM=document.getElementById("dobM"), elD=document.getElementById("dobD"), elTitle=document.getElementById("title"), elCopy=document.getElementById("copy"), elGenerate=document.getElementById("generate"), elRandomize=document.getElementById("randomize"), elPosterTA=document.getElementById('posterPrompt'), elPosterCopy=document.getElementById('copyPosterPromptBtn');
+    // ===== Elements =====
+    const elY=document.getElementById("dobY"),
+          elM=document.getElementById("dobM"),
+          elD=document.getElementById("dobD"),
+          elTitle=document.getElementById("title"),
+          elCopy=document.getElementById("copy"),
+          elGenerate=document.getElementById("generate"),
+          elRandomize=document.getElementById("randomize"),
+          elPosterTA=document.getElementById('posterPrompt'),
+          elPosterCopy=document.getElementById('copyPosterPromptBtn'),
+          elErr=document.getElementById('dobError');
 
-    const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
     const daysInMonth=(y,m)=>new Date(y,m,0).getDate();
     const randomElement = arr => arr[Math.floor(Math.random()*arr.length)];
 
-    function buildISO(){const y=parseInt(elY.value,10), m=parseInt(elM.value,10), d=parseInt(elD.value,10);if(!y||!m||!d) return "";if(m<1||m>12) return "";const dim=daysInMonth(y,m);if(d<1||d>dim) return "";return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;}
-    function titleFromISO(iso){if(!iso) return "";const [y,m,d]=iso.split("-").map(Number);return `${dayWords[d]} ${monthTwist[m]} ${yearThing[y%10]}`;}
-    function sanitize(){elY.value=elY.value.replace(/\D+/g,"");elM.value=elM.value.replace(/\D+/g,"");elD.value=elD.value.replace(/\D+/g,"");if(elM.value) elM.value=String(clamp(parseInt(elM.value,10)||0,1,12));if(elD.value){const y=parseInt(elY.value,10)||2000,m=parseInt(elM.value,10)||1;elD.value=String(clamp(parseInt(elD.value,10)||0,1,daysInMonth(y,m)));}}
-    function revealCopy(btn, show){btn.classList.toggle("show", !!show);btn.disabled=!show;}
+    // ===== Core helpers =====
+    function buildISO(){
+      const y=parseInt(elY.value,10), m=parseInt(elM.value,10), d=parseInt(elD.value,10);
+      if(!y||!m||!d) return "";
+      if(m<1||m>12) return "";
+      const dim=daysInMonth(y,m);
+      if(d<1||d>dim) return "";
+      return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    }
 
+    function titleFromISO(iso){
+      if(!iso) return "";
+      const [y,m,d]=iso.split("-").map(Number);
+      return `${dayWords[d]} ${monthTwist[m]} ${yearThing[y%10]}`;
+    }
+
+    // Keep numeric; keep leading zeros; no range clamping while typing
+    function sanitize(){
+      elY.value = elY.value.replace(/[^0-9]+/g, '').slice(0,4);
+      elM.value = elM.value.replace(/[^0-9]+/g, '').slice(0,2);
+      elD.value = elD.value.replace(/[^0-9]+/g, '').slice(0,2);
+    }
+
+    // Pad on blur to two digits
+    function padOnBlurMonth(){ if (elM.value.length === 1) elM.value = '0' + elM.value; if (hasSubmitted) updateErrorUI(); }
+    function padOnBlurDay(){ if (elD.value.length === 1) elD.value = '0' + elD.value; if (hasSubmitted) updateErrorUI(); }
+
+    // Validation + error UI (simplified messages)
+    function validateFields(){
+      const errs = {};
+      const yStr = elY.value, mStr = elM.value, dStr = elD.value;
+      const y = parseInt(yStr,10), m = parseInt(mStr,10), d = parseInt(dStr,10);
+
+      const yearValid = (yStr.length === 4 && !Number.isNaN(y) && y >= YEAR_MIN && y <= YEAR_MAX);
+      const monthValid = (!Number.isNaN(m) && m >= 1 && m <= 12);
+
+      if (!yearValid) errs.year = 'Invalid year.';
+      if (!monthValid) errs.month = 'Invalid month.';
+
+      let dayValid = (!Number.isNaN(d) && d >= 1 && d <= 31);
+      if (dayValid && yearValid && monthValid) {
+        dayValid = d <= daysInMonth(y, m);
+      }
+      if (!dayValid) errs.day = 'Invalid date.';
+
+      return { ok: Object.keys(errs).length === 0, errs };
+    }
+
+    function updateErrorUI(){
+      if (!hasSubmitted) { elErr.textContent = ''; elY.classList.remove('invalid'); elM.classList.remove('invalid'); elD.classList.remove('invalid'); return; }
+      const {errs} = validateFields();
+      elY.classList.toggle('invalid', !!errs.year);
+      elM.classList.toggle('invalid', !!errs.month);
+      elD.classList.toggle('invalid', !!errs.day);
+      const msg = [errs.year, errs.month, errs.day].filter(Boolean).join(' • ');
+      elErr.textContent = msg;
+    }
+
+    function clearErrors(){ elY.classList.remove('invalid'); elM.classList.remove('invalid'); elD.classList.remove('invalid'); elErr.textContent = ''; }
+    function revealCopy(btn, show){ btn.classList.toggle('show', !!show); btn.disabled=!show; }
+
+    // ===== Poster prompt =====
     function updatePosterPrompt(title){
-      if(!title){elPosterTA.value='';revealCopy(elPosterCopy,false);return;}
+      if(!title){ elPosterTA.value=''; revealCopy(elPosterCopy,false); return; }
       const moods=["campy, spooky-fun, midnight-in-October","dark gothic suspense with flickering lanterns","retro 80s VHS horror aesthetic","noir urban Halloween thriller","whimsical cartoonish haunted fun"];
       const settings=["moonlit cemetery","abandoned carnival","foggy suburban street","haunted drive-in theater","deserted data center glowing in orange light"];
       const palettes=["deep blacks, foggy grays, pumpkin oranges","neon purples, acid greens, inky shadows","cold blues, muted steel tones, candlelight yellows","warm reds, dusk oranges, faint violet haze"];
       const styles=["vintage 1970s grindhouse poster","digital painting with cinematic lighting","comic-book cover art with halftone texture","hand-painted pulp illustration","AI collage style with surreal contrast"];
       const mood=randomElement(moods), setting=randomElement(settings), palette=randomElement(palettes), style=randomElement(styles);
-      const prompt=[`Create a Halloween movie poster titled \"${title}\".`,`Mood: ${mood}.`,`Setting: ${setting}.`,`Palette: ${palette}.`,`Style: ${style}.`,`Typography: bold horror lettering for the title; optional tagline below.`,`Framing: vertical 2:3 portrait composition.`,`Include only the movie title text: \"${title}\".`].join("\n");
-      elPosterTA.value=prompt;revealCopy(elPosterCopy,true);
+      const prompt=[`Create a Halloween movie poster titled "${title}".`,`Mood: ${mood}.`,`Setting: ${setting}.`,`Palette: ${palette}.`,`Style: ${style}.`,`Typography: bold horror lettering for the title; optional tagline below.`,`Framing: vertical 2:3 portrait composition.`,`Include only the movie title text: "${title}".`].join("\n");
+      elPosterTA.value=prompt; revealCopy(elPosterCopy,true);
     }
 
-    function generateTitle(){sanitize();const iso=buildISO();const t=titleFromISO(iso);elTitle.textContent=t||"Pick a date to summon your title…";revealCopy(elCopy,!!t);updatePosterPrompt(t);}
-    function randomizeDate(){const day=Math.floor(Math.random()*31)+1;const month=Math.floor(Math.random()*12)+1;const year=1970+Math.floor(Math.random()*45);elY.value=String(year);elM.value=String(month).padStart(2,"0");elD.value=String(day).padStart(2,"0");generateTitle();}
-    function autoAdvance(e){const t=e.target;sanitize();if(t===elY&&t.value.length>=4) elM.focus();if(t===elM&&t.value.length>=2) elD.focus();}
-    function backspaceNav(e){if(e.key==="Backspace"&&e.target.value===""){if(e.target===elD) elM.focus(); else if(e.target===elM) elY.focus();}}
-    [elY,elM,elD].forEach(el=>{el.addEventListener("input",autoAdvance);el.addEventListener("keydown",backspaceNav);});
-    elGenerate.addEventListener("click",generateTitle);elRandomize.addEventListener("click",randomizeDate);
-    elCopy.addEventListener("click", async ()=>{const t=elTitle.textContent.trim();if(!t||t==="Pick a date to summon your title…") return;try{await navigator.clipboard.writeText(`🎬 ${t}`);const old=elCopy.textContent;elCopy.textContent="Copied!";setTimeout(()=>elCopy.textContent=old,1200);}catch{alert("Copy failed. Please copy manually.");}});
-    elPosterCopy.addEventListener('click', async ()=>{const v=elPosterTA.value.trim();if(!v) return;try{await navigator.clipboard.writeText(v);const old=elPosterCopy.textContent;elPosterCopy.textContent="Copied!";setTimeout(()=>elPosterCopy.textContent=old,1200);}catch{elPosterTA.select();document.execCommand('copy');const old=elPosterCopy.textContent;elPosterCopy.textContent="Copied (fallback)!";setTimeout(()=>elPosterCopy.textContent=old,1200);}});
-    revealCopy(elCopy,false);revealCopy(elPosterCopy,false);
+    // ===== UI wiring =====
+    function generateTitle(){
+      hasSubmitted = true;
+      sanitize();
+      const {ok, errs} = validateFields();
+      updateErrorUI();
+      if (!ok) {
+        if (errs.year) elY.focus(); else if (errs.month) elM.focus(); else if (errs.day) elD.focus();
+        return;
+      }
+
+      const iso=buildISO();
+      const t=titleFromISO(iso);
+      elTitle.textContent=t||"Pick a date to summon your title…";
+      revealCopy(elCopy,!!t);
+      updatePosterPrompt(t);
+    }
+
+    function randomizeDate(){
+      hasSubmitted = false;
+      const day=Math.floor(Math.random()*31)+1;
+      const month=Math.floor(Math.random()*12)+1;
+      const year=1970+Math.floor(Math.random()*45);
+      elY.value=String(year);
+      elM.value=String(month).padStart(2,"0");
+      elD.value=String(day).padStart(2,"0");
+      clearErrors();
+    }
+
+    function autoAdvance(e){
+      sanitize();
+      const t=e.target;
+      if(t===elY&&t.value.length>=4) elM.focus();
+      if(t===elM&&t.value.length>=2) elD.focus();
+      if (hasSubmitted) updateErrorUI();
+    }
+    function backspaceNav(e){ if(e.key==="Backspace"&&e.target.value===""){ if(e.target===elD) elM.focus(); else if(e.target===elM) elY.focus(); } }
+
+    [elY,elM,elD].forEach(el=>{ el.addEventListener("input",autoAdvance); el.addEventListener("keydown",backspaceNav); });
+    elM.addEventListener('blur', padOnBlurMonth);
+    elD.addEventListener('blur', padOnBlurDay);
+    elY.addEventListener('blur', ()=>{ if (hasSubmitted) updateErrorUI(); });
+
+    elGenerate.addEventListener("click",generateTitle);
+    elRandomize.addEventListener("click",randomizeDate);
+
+    elCopy.addEventListener("click", async ()=>{
+      const t=elTitle.textContent.trim(); if(!t||t==="Pick a date to summon your title…") return;
+      try{ await navigator.clipboard.writeText(`🎬 ${t}`); const old=elCopy.textContent; elCopy.textContent="Copied!"; setTimeout(()=>elCopy.textContent=old,1200); }
+      catch{ alert("Copy failed. Please copy manually."); }
+    });
+
+    elPosterCopy.addEventListener('click', async ()=>{
+      const v=elPosterTA.value.trim(); if(!v) return;
+      try{ await navigator.clipboard.writeText(v); const old=elPosterCopy.textContent; elPosterCopy.textContent="Copied!"; setTimeout(()=>elPosterCopy.textContent=old,1200); }
+      catch{ elPosterTA.select(); document.execCommand('copy'); const old=elPosterCopy.textContent; elPosterCopy.textContent="Copied (fallback)!"; setTimeout(()=>elPosterCopy.textContent=old,1200); }
+    });
+
+    // Start hidden and clean state
+    (function init(){
+      hasSubmitted = false;
+      clearErrors();
+      revealCopy(elCopy,false);
+      revealCopy(elPosterCopy,false);
+    })();
+
+    // ===== Inline tests (open console) =====
+    (function runTests(){
+      const results=[]; const assert=(name,cond)=>results.push({name, pass:!!cond});
+      const save={y:elY.value,m:elM.value,d:elD.value, msg:elErr.textContent, submit:hasSubmitted};
+
+      // Test 1: Simplified messages
+      hasSubmitted=true; elY.value='1999'; elM.value='02'; elD.value='31'; updateErrorUI();
+      assert('Invalid date message', elErr.textContent.includes('Invalid date'));
+
+      // Test 2: Invalid month
+      elY.value='2005'; elM.value='13'; elD.value='01'; updateErrorUI();
+      assert('Invalid month message', elErr.textContent.includes('Invalid month'));
+
+      // Test 3: Invalid year
+      elY.value='1789'; elM.value='07'; elD.value='14'; updateErrorUI();
+      assert('Invalid year message', elErr.textContent.includes('Invalid year'));
+
+      // Test 4: Valid leap day passes
+      elY.value='2000'; elM.value='02'; elD.value='29'; const {ok}=validateFields();
+      assert('Leap year valid', ok);
+
+      // Restore & cleanup so UI looks fresh
+      elY.value=save.y; elM.value=save.m; elD.value=save.d; hasSubmitted=save.submit; elErr.textContent = save.msg;
+      clearErrors();
+
+      const passed=results.filter(r=>r.pass).length; console.log(`Bid or Treat tests: ${passed}/${results.length} passed`, results);
+    })();
   </script>
 </body>
 </html>
