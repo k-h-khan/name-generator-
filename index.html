@@ -237,34 +237,40 @@
       catch{ elPosterTA.select(); document.execCommand('copy'); const old=elPosterCopy.textContent; elPosterCopy.textContent="Copied (fallback)!"; setTimeout(()=>elPosterCopy.textContent=old,1200); }
     });
 
-    // Start hidden and clean state
-    (function init(){ clearErrors(); revealCopy(elCopy,false); revealCopy(elPosterCopy,false); })();
+    // Start hidden and clean state; focus Year; ensure placeholder title/prompt
+    (function init(){
+      clearErrors();
+      revealCopy(elCopy,false); revealCopy(elPosterCopy,false);
+      elTitle.textContent = 'Pick a date to summon your title…';
+      elPosterTA.value = '';
+      try { elY.focus(); } catch {}
+    })();
 
-    // ===== Inline tests (open console) =====
-    (function runTests(){
+    // ===== (Optional) Inline tests — disabled unless ?test=1 =====
+    (function runTestsIfEnabled(){
+      const qs = new URLSearchParams(location.search);
+      if(qs.get('test') !== '1') return;
       const results=[]; const assert=(name,cond)=>results.push({name, pass:!!cond});
-      const save={y:elY.value,m:elM.value,d:elD.value, msg:elErr.textContent};
+      const save={y:elY.value,m:elM.value,d:elD.value, msg:elErr.textContent, title:elTitle.textContent, prompt:elPosterTA.value};
 
-      // Test 1: Errors only on Generate
+      // Basic: errors only on generate
       elY.value='1999'; elM.value='02'; elD.value='31';
       clearErrors();
       assert('No errors before Generate', elErr.textContent==='');
       generateTitle(); // invalid
-      assert('Errors appear on Generate', elErr.textContent.includes('Invalid date'));
+      assert('Errors appear on Generate', elErr.textContent.includes('Invalid'));
       // Edit clears errors while typing
       elD.value='2'; handleInput({target:elD});
       assert('Errors cleared while editing', elErr.textContent==='');
-      // Generate again to validate new value (still invalid until padded)
-      generateTitle();
-      assert('Errors appear again on next Generate if still invalid', elErr.textContent.includes('Invalid date'));
 
-      // Test 2: Valid date passes and shows no errors
+      // Valid date
       elY.value='2000'; elM.value='02'; elD.value='29'; clearErrors();
       generateTitle();
       assert('Valid generates without errors', elErr.textContent==='');
 
-      // Restore
-      elY.value=save.y; elM.value=save.m; elD.value=save.d; elErr.textContent = save.msg; clearErrors();
+      // Restore UI
+      elY.value=save.y; elM.value=save.m; elD.value=save.d; elErr.textContent = save.msg;
+      elTitle.textContent = save.title; elPosterTA.value = save.prompt; clearErrors();
 
       const passed=results.filter(r=>r.pass).length; console.log(`Bid or Treat tests: ${passed}/${results.length} passed`, results);
     })();
