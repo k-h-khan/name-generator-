@@ -199,13 +199,16 @@
     }
 
     function randomizeDate(){
-      const day=Math.floor(Math.random()*31)+1;
-      const month=Math.floor(Math.random()*12)+1;
-      const year=1970+Math.floor(Math.random()*45);
-      elY.value=String(year);
-      elM.value=String(month).padStart(2,"0");
-      elD.value=String(day).padStart(2,"0");
+      // Pick a valid random date, then immediately generate
+      const year = 1970 + Math.floor(Math.random()*45);
+      const month = Math.floor(Math.random()*12) + 1; // 1-12
+      const dim = daysInMonth(year, month);
+      const day = Math.floor(Math.random()*dim) + 1; // 1..dim
+      elY.value = String(year);
+      elM.value = String(month).padStart(2,"0");
+      elD.value = String(day).padStart(2,"0");
       clearErrors();
+      generateTitle();
     }
 
     function handleInput(e){
